@@ -48,7 +48,7 @@ To query the agent, send a POST request to `/api/v1/agent` with your query in th
 
 Example:
 ```bash
-curl -X POST http://localhost:3000/api/v1/agent -d '{"query": "Tell me the latest news about Justin Trudeau?"}' -H "Content-Type: application/json"
+curl -X POST http://localhost:4000/api/v1/agent -d '{"query": "Tell me the latest news about Justin Trudeau?"}' -H "Content-Type: application/json"
 ```
 ## License
 
