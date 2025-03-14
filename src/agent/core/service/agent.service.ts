@@ -9,43 +9,77 @@ import { RunnableSequence } from '@langchain/core/runnables';
 import { formatToOpenAIFunctionMessages } from 'langchain/agents/format_scratchpad';
 import { OpenAIFunctionsAgentOutputParser } from 'langchain/agents/openai/output_parser';
 import { AgentExecutor, type AgentStep } from 'langchain/agents';
-
 import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from '@langchain/core/prompts';
+import { ConfigService } from '@src/shared/module/config/config.service';
 
 @Injectable()
 export class AgentService {
-  constructor() {}
-  async generate(askQuestionRequestDto: AskQuestionRequestDto) {
-    const ragData = await this.retrieve(askQuestionRequestDto.query);
+  constructor(private readonly configService: ConfigService) {}
 
+  async generate(askQuestionRequestDto: AskQuestionRequestDto) {
+    try {
+      const ragData = await this.retrieve(askQuestionRequestDto.query);
+
+      const prompt = this.createPrompt(ragData.content);
+      const modelWithFunctions = this.createModelWithFunctions();
+
+      const runnableAgent = this.createRunnableAgent(
+        prompt,
+        modelWithFunctions,
+      );
+      const executor = this.createExecutor(runnableAgent);
+
+      const result = await executor.invoke({
+        input: askQuestionRequestDto.query,
+      });
+
+      return {
+        answer: result.output,
+        sources: ragData.metadata,
+      };
+    } catch (error) {
+      console.error('Error during question generation:', error);
+      throw new Error('Failed to generate answer');
+    }
+  }
+
+  private async retrieve(query: string) {
+    const embeddings = this.createEmbeddings();
+    const vectorStore = await this.createVectorStore(embeddings);
+    const retriever = vectorStore.asRetriever({ k: 3 });
+
+    const result = await retriever.invoke(query);
+    return this.formatRetrieverResult(result);
+  }
+
+  private createPrompt(sources: string[]) {
+    const template = `You are a chatbot that answers questions. Use the sources below to answer the questions. If a link is provided in the query, use the web tool to search for additional information from the link. -sources- Question:`;
+    const sourcesFormatted = this.formatSources(sources);
+
+    return ChatPromptTemplate.fromMessages([
+      ['system', template.replace('-sources-', sourcesFormatted)],
+      ['human', '{input}'],
+      new MessagesPlaceholder('agent_scratchpad'),
+    ]);
+  }
+
+  private createModelWithFunctions() {
     const llm = new ChatOpenAI({
       model: 'gpt-4o-mini',
       temperature: 0,
     });
 
-    const template = `You are a chatbot that answers questions. Use the sources below to answer the questions. If a link is provided in the query, use the web tool to search for additional information from the link. -sources- Question:`;
-
     const tools = [new TavilySearchResults({ maxResults: 1 })];
-
-    const sourcesFormatted = JSON.stringify(ragData.content, null, 2).replace(
-      /[{}]/g,
-      '',
-    );
-
-    const prompt = ChatPromptTemplate.fromMessages([
-      ['system', template.replace('-sources-', sourcesFormatted)],
-      ['human', '{input}'],
-      new MessagesPlaceholder('agent_scratchpad'),
-    ]);
-
-    const modelWithFunctions = llm.bind({
+    return llm.bind({
       functions: tools.map((tool) => convertToOpenAIFunction(tool)),
     });
+  }
 
-    const runnableAgent = RunnableSequence.from([
+  private createRunnableAgent(prompt, modelWithFunctions) {
+    return RunnableSequence.from([
       {
         input: (i: { input: string; steps: AgentStep[] }) => i.input,
         agent_scratchpad: (i: { input: string; steps: AgentStep[] }) =>
@@ -55,44 +89,37 @@ export class AgentService {
       modelWithFunctions,
       new OpenAIFunctionsAgentOutputParser(),
     ]);
+  }
 
-    const executor = AgentExecutor.fromAgentAndTools({
+  private createExecutor(runnableAgent) {
+    const tools = [new TavilySearchResults({ maxResults: 1 })];
+    return AgentExecutor.fromAgentAndTools({
       agent: runnableAgent,
       tools,
     });
-
-    const result = await executor.invoke({
-      input: askQuestionRequestDto.query,
-    });
-
-    return {
-      answer: result.output,
-      sources: ragData.metadata,
-    };
   }
 
-  async retrieve(query: string) {
-    const embeddings = new OpenAIEmbeddings({
+  private createEmbeddings() {
+    return new OpenAIEmbeddings({
       model: 'text-embedding-ada-002',
-      openAIApiKey: process.env.OPENAI_API_KEY,
+      openAIApiKey: this.configService.get('openai_api_key'),
     });
+  }
 
-    const vectorStore = await QdrantVectorStore.fromExistingCollection(
-      embeddings,
-      {
-        url: process.env.QDRANT_URL,
-        collectionName: process.env.QDRANT_COLLECTION_NAME,
-        apiKey: process.env.QDRANT_API_KEY,
-        contentPayloadKey: 'page_content',
-      },
-    );
-
-    const retriever = vectorStore.asRetriever({
-      k: 3,
+  private async createVectorStore(embeddings: OpenAIEmbeddings) {
+    return await QdrantVectorStore.fromExistingCollection(embeddings, {
+      url: this.configService.get('qdrant_url'),
+      collectionName: this.configService.get('qdrant_collection_name'),
+      apiKey: this.configService.get('qdrant_api_key'),
+      contentPayloadKey: 'page_content',
     });
+  }
 
-    const result = await retriever.invoke(query);
+  private formatSources(content: string[]) {
+    return JSON.stringify(content, null, 2).replace(/[{}]/g, '');
+  }
 
+  private formatRetrieverResult(result: any) {
     const metadata = result.map((doc) => ({
       title: doc.metadata.title,
       url: doc.metadata.url,
@@ -101,9 +128,6 @@ export class AgentService {
 
     const content = result.map((doc) => doc.pageContent);
 
-    return {
-      metadata,
-      content,
-    };
+    return { metadata, content };
   }
 }
