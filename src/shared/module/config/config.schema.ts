@@ -11,5 +11,6 @@ export const configSchema = z.object({
   openai_api_key: z.string(),
   qdrant_url: z.string(),
   qdrant_collection_name: z.string(),
+  qdrant_api_key: z.string(),
   tavily_api_key: z.string(),
 });

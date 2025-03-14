@@ -9,6 +9,7 @@ export const factory = (): Config => {
     apiKey: process.env.ACCESS_API_KEY,
     qdrant_url: process.env.QDRANT_URL,
     qdrant_collection_name: process.env.QDRANT_COLLECTION_NAME,
+    qdrant_api_key: process.env.QDRANT_API_KEY,
     tavily_api_key: process.env.TAVILY_API_KEY,
   });
 

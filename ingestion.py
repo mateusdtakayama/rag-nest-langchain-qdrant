@@ -10,6 +10,7 @@ load_dotenv()
 
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
 
 with open("articles.json", "r", encoding="utf-8") as file:
@@ -47,4 +48,5 @@ vector_store = QdrantVectorStore.from_documents(
     embedding=OpenAIEmbeddings(model="text-embedding-ada-002"),
     documents=documents_json,
     timeout=600,
+    api_key=QDRANT_API_KEY,
 )
