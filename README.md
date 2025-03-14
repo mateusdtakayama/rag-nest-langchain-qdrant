@@ -6,10 +6,10 @@ This project involves building an agent using LangChain and integrating a Tavily
 
 - **Web Search Integration**: Uses Tavily to search the web for relevant information.
 - **RAG Integration**: Fetches the data from Qdrant to provide context to the agent's responses.
-- **Chunk Management**: Aims to make chunks smaller and re-rank them for better relevance.
-- **Langfuse Monitoring**: Plans to integrate Langfuse for real-time monitoring of the agent.
-- **LLM Routing**: A strategy to reduce operational costs by routing to more efficient models.
-- **Firecrawl Web Scraping**: Implements Firecrawl for real-time web scraping of new articles to feed into the RAG.
+- **Chunk Management**: Aims to make chunks smaller and re-rank them for better relevance. (To Do)
+- **Langfuse Monitoring**: Plans to integrate Langfuse for real-time monitoring of the agent. (To Do)
+- **LLM Routing**: A strategy to reduce operational costs by routing to more efficient models. (To Do)
+- **Firecrawl Web Scraping**: Implements Firecrawl for real-time web scraping of new articles to feed into the RAG. (To Do)
 
 ## Architecture
 
