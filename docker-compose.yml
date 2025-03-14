@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app 
+    container_name: app
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: |
+      bash -c "
+        pip install -r requirements.txt && 
+        python data_generator.py && 
+        python ingestion.py
+      "
+    depends_on:
+      - qdrant
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+    ports:
+      - "5000:5000"
+
+  nest:
+    build:
+      context: ./
+      dockerfile: Dockerfile.nest  
+    container_name: nest_app
+    working_dir: /app
+    environment:
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+    volumes:
+      - ./:/app  
+    command: |
+      bash -c "
+        npm run start:prod
+      "
+    ports:
+      - "4000:4000"
+    depends_on:
+      - qdrant
+      - app
+
+volumes:
+  qdrant_data:
+    driver: local

@@ -110,7 +110,6 @@ export class AgentService {
     return await QdrantVectorStore.fromExistingCollection(embeddings, {
       url: this.configService.get('qdrant_url'),
       collectionName: this.configService.get('qdrant_collection_name'),
-      apiKey: this.configService.get('qdrant_api_key'),
       contentPayloadKey: 'page_content',
     });
   }
